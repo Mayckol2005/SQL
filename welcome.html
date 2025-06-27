@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold">Estadísticas de Videojuegos</h1>
+    <button onclick="cerrarSesion()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+      Cerrar Sesión
+    </button>
+  </div>
+
+  <!-- Gráfico de Barras -->
+  <div class="mb-8">
+    <canvas id="chartBarras" class="w-full h-64"></canvas>
+  </div>
+
+  <!-- Gráfico de Dona -->
+  <div class="mb-8 flex justify-center">
+    <canvas id="chartDona" class="max-w-md w-full h-64"></canvas>
+  </div>
+
+  <script>
+    const supabaseUrl = 'https://joscmwfvdczalrzgnnfu.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impvc2Ntd2Z2ZGN6YWxyemdubmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwODY5NDIsImV4cCI6MjA2NTY2Mjk0Mn0.oKGw6MShW9azVj4jwtnZkmhAsvIzFxXKAcheVUMtQVQ';
+
+    // Endpoints REST Supabase
+    const endpointVideojuegos = `${supabaseUrl}/rest/v1/videojuegos?select=titulo,precio`;
+    const endpointPorPlataforma = `${supabaseUrl}/rest/v1/vw_videojuegos_por_plataforma?select=plataforma,cantidad_videojuegos`;
+
+    async function cargarDatosYMostrarGraficos() {
+      // Consultar videojuegos para gráfico de barras
+      const resVideojuegos = await fetch(endpointVideojuegos, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const datosVideojuegos = await resVideojuegos.json();
+
+      const titulos = datosVideojuegos.map(juego => juego.titulo);
+      const precios = datosVideojuegos.map(juego => juego.precio);
+
+      // Gráfico de Barras
+      const ctxBarras = document.getElementById('chartBarras').getContext('2d');
+      new Chart(ctxBarras, {
+        type: 'bar',
+        data: {
+          labels: titulos,
+          datasets: [{
+            label: 'Precio en CLP',
+            data: precios,
+            backgroundColor: 'rgba(59, 130, 246, 0.5)',
+            borderColor: 'rgba(59, 130, 246, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true }
+          },
+          plugins: {
+            title: {
+              display: true,
+              text: 'Precios de Videojuegos',
+              font: {
+                size: 18,
+                weight: 'bold'
+              },
+              padding: {
+                top: 10,
+                bottom: 20
+              }
+            }
+          }
+        }
+      });
+
+      // Consultar cantidad videojuegos por plataforma para gráfico de dona
+      const resPorPlataforma = await fetch(endpointPorPlataforma, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const datosPorPlataforma = await resPorPlataforma.json();
+
+      const plataformas = datosPorPlataforma.map(row => row.plataforma);
+      const cantidades = datosPorPlataforma.map(row => row.cantidad_videojuegos);
+
+      // Colores para el grafico
+      const colores = [
+        '#60a5fa', '#f87171', '#34d399', '#fbbf24',
+        '#a78bfa', '#f472b6', '#facc15', '#10b981'
+      ];
+
+      // Gráfico de Dona
+      const ctxDona = document.getElementById('chartDona').getContext('2d');
+      new Chart(ctxDona, {
+        type: 'doughnut',
+        data: {
+          labels: plataformas,
+          datasets: [{
+            label: 'Cantidad de videojuegos',
+            data: cantidades,
+            backgroundColor: colores.slice(0, plataformas.length)
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '50%',
+          plugins: {
+            legend: {
+              position: 'left'
+            },
+            title: {
+              display: true,
+              text: 'Cantidad de Videojuegos por Plataforma',
+              font: {
+                size: 18,
+                weight: 'bold'
+              },
+              padding: {
+                top: 10,
+                bottom: 20
+              }
+            },
+            tooltip: {
+              enabled: true
+            }
+          }
+        }
+      });
+    }
+
+    function cerrarSesion() {
+      window.location.href = 'index.html';
+    }
+
+    cargarDatosYMostrarGraficos();
+  </script>
+</body>
+</html>
