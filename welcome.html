@@ -30,7 +30,7 @@
 
     // Endpoints REST Supabase
     const endpointVideojuegos = `${supabaseUrl}/rest/v1/videojuegos?select=titulo,precio`;
-    const endpointPorPlataforma = `${supabaseUrl}/rest/v1/vw_videojuegos_por_plataforma?select=plataforma,cantidad_videojuegos`;
+    const endpointPorDesarrollador = `${supabaseUrl}/rest/v1/view_videojuegos_por_desarrollador?select=nombre_desarrollador,cantidad_juegos`;
 
     async function cargarDatosYMostrarGraficos() {
       // Consultar videojuegos para gráfico de barras
@@ -83,18 +83,18 @@
         }
       });
 
-      // Consultar cantidad videojuegos por plataforma para gráfico de dona
-      const resPorPlataforma = await fetch(endpointPorPlataforma, {
+      // Consultar cantidad videojuegos por Desarrollador para gráfico de dona
+      const resPorDesarrollador = await fetch(endpointPorDesarrollador, {
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`,
           'Content-Type': 'application/json'
         }
       });
-      const datosPorPlataforma = await resPorPlataforma.json();
+      const datosPorDesarrollador = await resPorDesarrollador.json();
 
-      const plataformas = datosPorPlataforma.map(row => row.plataforma);
-      const cantidades = datosPorPlataforma.map(row => row.cantidad_videojuegos);
+      const desarrolladores = datosPorDesarrollador.map(row => row.nombre_desarrollador);
+      const cantidades = datosPorDesarrollador.map(row => row.cantidad_juegos);
 
       // Colores para el grafico
       const colores = [
@@ -107,11 +107,11 @@
       new Chart(ctxDona, {
         type: 'doughnut',
         data: {
-          labels: plataformas,
+          labels: desarrolladores,
           datasets: [{
             label: 'Cantidad de videojuegos',
             data: cantidades,
-            backgroundColor: colores.slice(0, plataformas.length)
+            backgroundColor: colores.slice(0, desarrolladores.length)
           }]
         },
         options: {
@@ -124,7 +124,7 @@
             },
             title: {
               display: true,
-              text: 'Cantidad de Videojuegos por Plataforma',
+              text: 'Cantidad de Videojuegos por Desarrollador',
               font: {
                 size: 18,
                 weight: 'bold'
