@@ -1,0 +1,221 @@
+-- ELIMINACION DE TABLAS
+
+DROP TABLE  reseñas CASCADE;
+DROP TABLE  videojuego_plataforma CASCADE;
+DROP TABLE  videojuegos CASCADE;
+DROP TABLE  plataformas CASCADE;
+DROP TABLE  desarrolladoras CASCADE;
+DROP TABLE  usuarios CASCADE;
+
+-- CREACION DE LAS TABLAS (5)
+
+CREATE TABLE usuarios (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  email VARCHAR(100) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  rol VARCHAR(20)
+);
+
+CREATE TABLE desarrolladoras (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  nombre VARCHAR(100) UNIQUE NOT NULL,
+  pais VARCHAR(50)
+);
+
+CREATE TABLE plataformas (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  nombre VARCHAR(50) UNIQUE NOT NULL
+);
+
+CREATE TABLE videojuegos (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  titulo VARCHAR(100) NOT NULL,
+  precio INTEGER NOT NULL,  
+  id_desarrolladora INTEGER REFERENCES desarrolladoras(id),
+  fecha_lanzamiento DATE
+);
+
+CREATE TABLE videojuego_plataforma (
+  id_videojuego INTEGER REFERENCES videojuegos(id),
+  id_plataforma INTEGER REFERENCES plataformas(id),
+  PRIMARY KEY (id_videojuego, id_plataforma)
+);
+
+CREATE TABLE reseñas (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  id_usuario INTEGER REFERENCES usuarios(id),
+  id_videojuego INTEGER REFERENCES videojuegos(id),
+  puntuacion INTEGER CHECK (puntuacion BETWEEN 1 AND 10),
+  comentario TEXT,
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- INSERCION DE DATOS A LAS TABLAS
+
+INSERT INTO usuarios (email, password_hash, rol) VALUES
+('admin@gmail.com', '441b02df090112b0b48b44e9eb6026d2ca1eec0d685c7d5712b59efbb9423a0c', 'admin'), -- password = ola123
+('cliente@gmail.com', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'cliente'), -- password = 123456
+('user@gmail.com', '39ac91a1f17380ebfbdc150b2b1ab5afdee37951f2559b71d7ffb927501628a3', 'cliente'); -- password = sqlpro
+
+INSERT INTO desarrolladoras (nombre, pais) VALUES
+('Nintendo', 'Japón'),
+('Valve', 'Estados Unidos'),
+('CD Projekt', 'Polonia');
+
+INSERT INTO plataformas (nombre) VALUES
+('PC'),
+('Nintendo Switch'),
+('PlayStation 5');
+
+INSERT INTO videojuegos (titulo, precio, id_desarrolladora) VALUES
+('The Legend of Zelda: Breath of the Wild', 54990, 1),
+('Half-Life: Alyx', 42990, 2),
+('Cyberpunk 2077', 29990, 3),
+('Portal 2', 6990, 2),
+('The Witcher 3', 14990, 3);
+
+INSERT INTO videojuegos (titulo, precio, id_desarrolladora) VALUES
+('Elden Ring', 55000, 1);
+
+INSERT INTO videojuego_plataforma (id_videojuego, id_plataforma) VALUES
+(1, 2),
+(2, 1),
+(3, 1),
+(3, 3),
+(4, 1),
+(5, 1),
+(5, 3);
+
+INSERT INTO reseñas (id_usuario, id_videojuego, puntuacion, comentario, fecha) VALUES
+(2, 1, 10, 'Obra maestra de Nintendo', '2024-05-12'),
+(3, 3, 7, 'Mejoró mucho con los parches', '2024-06-01'),
+(2, 2, 9, 'Excelente VR', '2024-06-03'),
+(3, 4, 8, 'Clásico de puzzles', '2024-06-10'),
+(2, 5, 10, 'Increíble historia y mundo', '2024-06-12'),
+(3, 5, 9, 'Muy recomendado', '2024-06-15');
+
+-- CONSULTAS SQL
+
+-- JOIN (Videojuegos con desarrolladora y plataformas)
+
+SELECT 
+  v.titulo AS videojuego,
+  d.nombre AS desarrolladora,
+  STRING_AGG(p.nombre, ', ') AS plataformas
+FROM videojuegos v
+JOIN desarrolladoras d ON v.id_desarrolladora = d.id
+JOIN videojuego_plataforma vp ON v.id = vp.id_videojuego
+JOIN plataformas p ON vp.id_plataforma = p.id
+GROUP BY v.titulo, d.nombre;
+
+-- CASE (Reseñas según su puntuación)
+
+SELECT 
+  r.id,
+  u.email AS usuario,
+  v.titulo AS videojuego,
+  r.puntuacion,
+  CASE 
+    WHEN r.puntuacion >= 8 THEN 'Alta'
+    WHEN r.puntuacion BETWEEN 5 AND 7 THEN 'Media'
+    ELSE 'Baja'
+  END AS clasificacion
+FROM reseñas r
+JOIN usuarios u ON r.id_usuario = u.id
+JOIN videojuegos v ON r.id_videojuego = v.id;
+
+-- HAVING (Videojuego con más de 2 reseñas y puntuacion mayor a 7)
+
+SELECT 
+  v.titulo,
+  COUNT(r.id) AS cantidad_resenas,
+  ROUND(AVG(r.puntuacion), 2) AS puntuacion
+FROM videojuegos v
+JOIN reseñas r ON v.id = r.id_videojuego
+GROUP BY v.titulo
+HAVING COUNT(r.id) > 1 AND AVG(r.puntuacion) > 7;
+
+-- EXISTS (Listar videojuegos que tienen al menos una reseña y su precio)
+
+SELECT titulo, precio
+FROM videojuegos
+WHERE precio > ANY (
+  SELECT precio FROM videojuegos WHERE id_desarrolladora IS NOT NULL
+);
+
+--VIEW (Vista de videojuegos con puntuación media alta y sus reseñas)
+
+CREATE VIEW vista_juegos_populares AS
+SELECT 
+  v.titulo,
+  ROUND(AVG(r.puntuacion), 0) AS promedio_puntuacion,
+  COUNT(r.id) AS total_resenas
+FROM videojuegos v
+JOIN reseñas r ON v.id = r.id_videojuego
+GROUP BY v.titulo
+HAVING AVG(r.puntuacion) >= 8;
+
+SELECT * FROM vista_juegos_populares;
+
+-- FUNCTION (Función que retorna el videojuego, precio y desarrolladora)
+
+CREATE OR REPLACE FUNCTION videojuegos_con_info()
+RETURNS TABLE (
+  titulo VARCHAR(100),
+  precio INTEGER,
+  desarrolladora VARCHAR(100)
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    v.titulo,
+    v.precio,
+    d.nombre AS desarrolladora
+  FROM videojuegos v
+  JOIN desarrolladoras d ON v.id_desarrolladora = d.id
+  ORDER BY v.precio DESC;
+END;
+$$ LANGUAGE plpgsql; 
+
+-- La función esta escrita en lenguaje procedural (PostgreSQL Procedural Language) 
+-- $$ delimita el bloque de código de la función.
+
+SELECT * FROM videojuegos_con_info();
+
+-- TRIGGER
+
+CREATE OR REPLACE FUNCTION actualizar_fecha_reseña()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.fecha := CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_fecha_modificacion
+BEFORE UPDATE ON reseñas
+FOR EACH ROW
+EXECUTE FUNCTION actualizar_fecha_reseña();
+
+UPDATE reseñas
+SET comentario = 'ta weno :)',
+    puntuacion = 10
+WHERE id = 9;
+
+SELECT id, comentario, puntuacion, fecha
+FROM reseñas
+ORDER BY fecha DESC
+LIMIT 10;
+
+-- GRAFICO DONA
+
+CREATE OR REPLACE VIEW vw_videojuegos_por_plataforma AS
+SELECT
+  p.nombre AS plataforma,
+  COUNT(vp.id_videojuego) AS cantidad_videojuegos
+FROM videojuego_plataforma vp
+JOIN plataformas p ON vp.id_plataforma = p.id
+GROUP BY p.nombre
+ORDER BY cantidad_videojuegos DESC;
+
+SELECT * FROM vw_videojuegos_por_plataforma;
