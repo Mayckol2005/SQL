@@ -9,7 +9,7 @@ El sistema incluye:
 ## Tecnologías utilizadas
 - Frontend: HTML, Tailwind CSS, JavaScript.
 - Librerias: SweetAlert2 (para mensajes), CryptoJS (para hash), Chart.js (para gráficos)
-- Backend: Supabase (base de datos y API REST)
+- Backend: Supabase (base de datos)
 ## Módulo de Autenticación
 - Login: Validación de credenciales contra la tabla usuarios en Supabase.
 - Seguridad: Las contraseñas se almacenan con hash SHA-256 irreversible.
